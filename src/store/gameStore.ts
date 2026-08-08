@@ -14,6 +14,22 @@ import { makeId, newGame } from '../types';
 
 const opponent = (t: TeamSide): TeamSide => (t === 'home' ? 'away' : 'home');
 
+// The game clock and shot clock are treated as a single "play is live" toggle:
+// starting or pausing either one starts/pauses both (a clock already at 0 stays
+// paused until it's reset, since running it wouldn't do anything).
+function syncRunning(
+  g: { clockMs: number; shotClockMs: number; clockRunning: boolean; shotClockRunning: boolean },
+  running: boolean,
+) {
+  if (running) {
+    if (g.clockMs > 0) g.clockRunning = true;
+    if (g.shotClockMs > 0) g.shotClockRunning = true;
+  } else {
+    g.clockRunning = false;
+    g.shotClockRunning = false;
+  }
+}
+
 const HISTORY_LIMIT = 40;
 
 // Zustand's persist middleware writes to storage on every state change. The game
@@ -213,15 +229,14 @@ export const useGameStore = create<Store>()(
         set((state) => {
           const g = state.games[state.currentGameId ?? ''];
           if (!g) return;
-          g.clockRunning = running;
-          if (!running) g.shotClockRunning = false;
+          syncRunning(g, running);
         }),
 
       setShotClockRunning: (running) =>
         set((state) => {
           const g = state.games[state.currentGameId ?? ''];
           if (!g) return;
-          g.shotClockRunning = running;
+          syncRunning(g, running);
         }),
 
       tick: (deltaMs) =>
@@ -243,7 +258,10 @@ export const useGameStore = create<Store>()(
           }
           if (g.shotClockRunning) {
             g.shotClockMs = Math.max(0, g.shotClockMs - deltaMs);
-            if (g.shotClockMs === 0) g.shotClockRunning = false;
+            if (g.shotClockMs === 0) {
+              g.shotClockRunning = false;
+              g.clockRunning = false;
+            }
           }
           g.updatedAt = Date.now();
         }),
