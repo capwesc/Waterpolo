@@ -13,6 +13,9 @@ function sortedPlayers(players: Player[]): Player[] {
   return [...players].sort((a, b) => Number(a.cap) - Number(b.cap) || a.cap.localeCompare(b.cap));
 }
 
+// Placeholder colors for Houston HOPS Water Polo — swap via the color picker if these don't match.
+const HOPS_PRESET = { name: 'HOPS Water Polo', color: '#0f3460' };
+
 function RosterEditor({
   team,
   setTeam,
@@ -51,6 +54,14 @@ function RosterEditor({
           onChange={(e) => setTeam({ ...team, color: e.target.value })}
           className="w-10 h-9 bg-slate-800 border border-slate-700 rounded cursor-pointer"
         />
+        <button
+          type="button"
+          onClick={() => setTeam({ ...team, name: HOPS_PRESET.name, color: HOPS_PRESET.color })}
+          className="shrink-0 text-xs px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
+          title="Fill in the Houston HOPS Water Polo Club name & color preset"
+        >
+          🌊 HOPS
+        </button>
       </div>
 
       <div className="flex items-center justify-between">

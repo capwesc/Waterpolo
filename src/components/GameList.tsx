@@ -54,6 +54,19 @@ export function GameList({ onNewGame, onOpenGame }: { onNewGame: () => void; onO
           );
         })}
       </div>
+
+      <p className="text-center text-xs text-slate-600 mt-4">
+        Built for{' '}
+        <a
+          href="https://www.hopswaterpolo.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-500 hover:text-sky-400 underline"
+        >
+          HOPS Water Polo
+        </a>{' '}
+        · Houston, TX
+      </p>
     </div>
   );
 }
