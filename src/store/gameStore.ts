@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
 import type {
@@ -15,6 +15,51 @@ import { makeId, newGame } from '../types';
 const opponent = (t: TeamSide): TeamSide => (t === 'home' ? 'away' : 'home');
 
 const HISTORY_LIMIT = 40;
+
+// Zustand's persist middleware writes to storage on every state change. The game
+// clock ticks 10x/second while running, which would otherwise mean 10 localStorage
+// writes/sec. Debounce those writes, but always flush immediately when the page is
+// about to go away so an in-progress game is never lost if the app/tab closes.
+function createThrottledLocalStorage(delayMs = 800) {
+  let timer: number | null = null;
+  let pendingKey: string | null = null;
+  let pendingValue: string | null = null;
+
+  const flush = () => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+    if (pendingKey !== null && pendingValue !== null) {
+      window.localStorage.setItem(pendingKey, pendingValue);
+      pendingKey = null;
+      pendingValue = null;
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush();
+    });
+  }
+
+  return {
+    getItem: (name: string) => window.localStorage.getItem(name),
+    setItem: (name: string, value: string) => {
+      pendingKey = name;
+      pendingValue = value;
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(flush, delayMs);
+    },
+    removeItem: (name: string) => {
+      pendingKey = null;
+      pendingValue = null;
+      window.localStorage.removeItem(name);
+    },
+  };
+}
 
 type ShotResult = 'shot_saved' | 'shot_missed' | 'shot_blocked' | 'shot_post';
 type QuickAction = 'steal' | 'block' | 'turnover' | 'sprint_won';
@@ -150,8 +195,10 @@ export const useGameStore = create<Store>()(
         set((state) => {
           const g = state.games[state.currentGameId ?? ''];
           if (!g) return;
+          const target = g.teams[side].players.find((p) => p.id === playerId);
+          const makeGoalie = !target?.isGoalie;
           g.teams[side].players.forEach((p) => {
-            p.isGoalie = p.id === playerId ? !p.isGoalie : p.isGoalie;
+            p.isGoalie = makeGoalie && p.id === playerId;
           });
         }),
 
@@ -459,6 +506,7 @@ export const useGameStore = create<Store>()(
     })),
     {
       name: 'wp-scoresheet',
+      storage: createJSONStorage(() => createThrottledLocalStorage()),
       partialize: (state) => ({ games: state.games, currentGameId: state.currentGameId }),
     },
   ),

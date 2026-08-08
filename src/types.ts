@@ -112,6 +112,13 @@ export function emptyTeam(name: string, color: string): TeamConfig {
   return { name, color, players: [] };
 }
 
+export function defaultRoster(size = 15): Player[] {
+  return Array.from({ length: size }, (_, i) => {
+    const cap = String(i + 1);
+    return { id: makeId(), cap, name: `Player ${cap}`, isGoalie: cap === '1' };
+  });
+}
+
 export function newGame(
   name: string,
   home: TeamConfig,

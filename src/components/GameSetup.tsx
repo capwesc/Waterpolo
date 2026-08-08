@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { GameConfig, Player, TeamConfig } from '../types';
-import { DEFAULT_CONFIG, makeId } from '../types';
+import { DEFAULT_CONFIG, defaultRoster, makeId } from '../types';
 
 interface DraftTeam {
   name: string;
   color: string;
   players: Player[];
+}
+
+function sortedPlayers(players: Player[]): Player[] {
+  return [...players].sort((a, b) => Number(a.cap) - Number(b.cap) || a.cap.localeCompare(b.cap));
 }
 
 function RosterEditor({
@@ -29,6 +33,9 @@ function RosterEditor({
     setName('');
   };
 
+  const updatePlayer = (id: string, patch: Partial<Player>) =>
+    setTeam({ ...team, players: team.players.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
@@ -46,6 +53,45 @@ function RosterEditor({
         />
       </div>
 
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500">
+          Caps #1–15 are pre-filled (cap #1 defaults to goalie). Rename players now, or leave as numbers and
+          fill in names later from the game screen.
+        </p>
+        <button
+          type="button"
+          onClick={() => setTeam({ ...team, players: defaultRoster() })}
+          className="shrink-0 text-xs text-slate-400 hover:text-slate-200 underline"
+        >
+          Reset to #1–15
+        </button>
+      </div>
+
+      <div className="flex flex-col divide-y divide-slate-800 rounded border border-slate-800 max-h-72 overflow-y-auto">
+        {team.players.length === 0 && <p className="text-xs text-slate-500 px-2 py-2">No players added yet.</p>}
+        {sortedPlayers(team.players).map((p) => (
+          <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+            <span className="tabular text-slate-400 w-8 shrink-0">#{p.cap}</span>
+            <input
+              value={p.name}
+              onChange={(e) => updatePlayer(p.id, { name: e.target.value })}
+              className="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-sky-500 focus:outline-none text-slate-200 px-1 py-0.5"
+            />
+            <label className="flex items-center gap-1 text-[11px] text-slate-400 shrink-0">
+              <input type="checkbox" checked={!!p.isGoalie} onChange={() => updatePlayer(p.id, { isGoalie: !p.isGoalie })} />
+              GK
+            </label>
+            <button
+              type="button"
+              onClick={() => setTeam({ ...team, players: team.players.filter((pl) => pl.id !== p.id) })}
+              className="text-slate-500 hover:text-red-400 px-1 shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="flex gap-2">
         <input
           value={cap}
@@ -57,43 +103,13 @@ function RosterEditor({
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Player name (optional)"
+          placeholder="Add extra player (optional name)"
           onKeyDown={(e) => e.key === 'Enter' && addPlayer()}
           className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-100"
         />
         <button type="button" onClick={addPlayer} className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold">
           Add
         </button>
-      </div>
-
-      <div className="flex flex-col divide-y divide-slate-800 rounded border border-slate-800 max-h-56 overflow-y-auto">
-        {team.players.length === 0 && <p className="text-xs text-slate-500 px-2 py-2">No players added yet.</p>}
-        {team.players.map((p) => (
-          <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
-            <span className="tabular text-slate-400 w-8">#{p.cap}</span>
-            <span className="flex-1 text-slate-200 truncate">{p.name}</span>
-            <label className="flex items-center gap-1 text-[11px] text-slate-400">
-              <input
-                type="checkbox"
-                checked={!!p.isGoalie}
-                onChange={() =>
-                  setTeam({
-                    ...team,
-                    players: team.players.map((pl) => (pl.id === p.id ? { ...pl, isGoalie: !pl.isGoalie } : pl)),
-                  })
-                }
-              />
-              GK
-            </label>
-            <button
-              type="button"
-              onClick={() => setTeam({ ...team, players: team.players.filter((pl) => pl.id !== p.id) })}
-              className="text-slate-500 hover:text-red-400 px-1"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -102,8 +118,8 @@ function RosterEditor({
 export function GameSetup({ onCancel, onCreated }: { onCancel: () => void; onCreated: () => void }) {
   const createGame = useGameStore((s) => s.createGame);
   const [gameName, setGameName] = useState('');
-  const [home, setHome] = useState<DraftTeam>({ name: 'Home', color: '#0ea5e9', players: [] });
-  const [away, setAway] = useState<DraftTeam>({ name: 'Away', color: '#f97316', players: [] });
+  const [home, setHome] = useState<DraftTeam>({ name: 'Home', color: '#0ea5e9', players: defaultRoster() });
+  const [away, setAway] = useState<DraftTeam>({ name: 'Away', color: '#f97316', players: defaultRoster() });
   const [config, setConfig] = useState<GameConfig>({ ...DEFAULT_CONFIG });
 
   const numField = (label: string, value: number, onChange: (v: number) => void, unit: string) => (
