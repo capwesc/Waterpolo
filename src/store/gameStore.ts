@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { current } from 'immer';
 import type {
   ExclusionState,
   GameConfig,
@@ -25,6 +26,7 @@ interface Store {
 
   createGame: (name: string, home: TeamConfig, away: TeamConfig, config?: GameConfig) => string;
   loadGame: (id: string) => void;
+  closeGame: () => void;
   deleteGame: (id: string) => void;
   renameGame: (id: string, name: string) => void;
 
@@ -65,7 +67,7 @@ function pushHistory(state: { games: Record<string, GameState>; currentGameId: s
   if (!state.currentGameId) return;
   const g = state.games[state.currentGameId];
   if (!g) return;
-  state.history.push(structuredClone(g));
+  state.history.push(structuredClone(current(g)));
   if (state.history.length > HISTORY_LIMIT) state.history.shift();
 }
 
@@ -92,6 +94,12 @@ export const useGameStore = create<Store>()(
             state.currentGameId = id;
             state.history = [];
           }
+        }),
+
+      closeGame: () =>
+        set((state) => {
+          state.currentGameId = null;
+          state.history = [];
         }),
 
       deleteGame: (id) =>

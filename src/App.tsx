@@ -85,14 +85,20 @@ function GameView({ gameId, onHome }: { gameId: string; onHome: () => void }) {
 export default function App() {
   const currentGameId = useGameStore((s) => s.currentGameId);
   const loadGame = useGameStore((s) => s.loadGame);
+  const closeGame = useGameStore((s) => s.closeGame);
   const [view, setView] = useState<View>(currentGameId ? 'game' : 'home');
 
+  const goHome = () => {
+    closeGame();
+    setView('home');
+  };
+
   if (view === 'setup') {
-    return <GameSetup onCancel={() => setView('home')} onCreated={() => setView('game')} />;
+    return <GameSetup onCancel={goHome} onCreated={() => setView('game')} />;
   }
 
   if (view === 'game' && currentGameId) {
-    return <GameView gameId={currentGameId} onHome={() => setView('home')} />;
+    return <GameView gameId={currentGameId} onHome={goHome} />;
   }
 
   return (
